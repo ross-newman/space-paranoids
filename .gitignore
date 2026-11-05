@@ -1,0 +1,8 @@
+# What the build makes
+build/
+build-engine/
+
+# Reference pictures, kept locally: the game does not use them and they are not ours to publish
+images/TRON*
+images/image*.png
+images/Runner.png
