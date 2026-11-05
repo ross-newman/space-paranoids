@@ -1,12 +1,26 @@
 # space-paranoids
 
+[![Debian packages](https://github.com/ross-newman/space-paranoids/actions/workflows/deb.yml/badge.svg?branch=main)](https://github.com/ross-newman/space-paranoids/actions/workflows/deb.yml)
+[![Windows installer](https://github.com/ross-newman/space-paranoids/actions/workflows/windows.yml/badge.svg?branch=main)](https://github.com/ross-newman/space-paranoids/actions/workflows/windows.yml)
+[![Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fross-newman%2Fspace-paranoids%2Fmain%2FVERSION&search=%5E%5Cs*(%5CS%2B)&replace=%241&label=version&color=blue)](VERSION)
+[![Release](https://img.shields.io/github/v/release/ross-newman/space-paranoids)](https://github.com/ross-newman/space-paranoids/releases)
+
 A first-person tank game in C++17. Drive a slow, heavy tank through a generated 3D maze and shoot down the kites flying its corridors. Everything is made by code: the picture comes from a software renderer and the sound from AdLib-style FM synthesis, with no image or audio files loaded at run time.
 
 ![A kite blown up down a corridor, seen from the chase camera, with the tank, radar and score](images/action.png)
 
-## Getting started
+## Install
 
-You need a C++17 compiler, CMake 3.10 or newer and SDL2. Everything else is in this repo.
+[Releases](https://github.com/ross-newman/space-paranoids/releases) have a `.deb` for Ubuntu 24.04, a `.deb` for Ubuntu 26.04 and a Windows installer. On Ubuntu:
+
+```bash
+sudo apt install ./space-paranoids_*.deb
+space-paranoids
+```
+
+## Build from source
+
+You need a C++17 compiler, CMake 3.16 or newer and SDL2 (`libsdl2-dev` on Ubuntu). Everything else is in this repo.
 
 ```bash
 make        # build everything into build/
@@ -16,6 +30,8 @@ make clean  # delete what was built
 ```
 
 The game itself is `build/space-paranoids`.
+
+To make a package, run `cpack -G DEB` on Linux or `cpack -G NSIS` on Windows in the build directory. The version is in [VERSION](VERSION). Pushing a tag such as `v0.2.0` makes GitHub build, test and install all three packages, then attach them to a release of that tag.
 
 ## Playing
 
@@ -92,6 +108,8 @@ cmake --build build-engine --target softrender_tests
 | [src/battle.h](src/battle.h) | Kites, shots, explosions, the HUD, radar and pause screen |
 | [src/terminal.h](src/terminal.h) | The opening screen and its dot font |
 | [src/vehicles.h](src/vehicles.h) | The crawler (the tank), kite and runner models |
+| [packaging/](packaging) | The icon, desktop entry and copyright notice of the packages |
+| [.github/workflows/](.github/workflows) | The builds of the packages |
 | [src/score.h](src/score.h) | The music |
 | [src/audio.h](src/audio.h) | All sound on an SDL audio device |
 | [src/pad.h](src/pad.h) | Controllers and joysticks |
@@ -105,6 +123,6 @@ Nothing builds `src/main.cpp`, `src/game.cpp`, `src/game.h`, the root `game.h` o
 
 ## Credits
 
-The runner model is the light cycle mesh from [gltron](https://github.com/laanwj/gltron), kept as `images/runner.obj` and built into [src/vehicles.cpp](src/vehicles.cpp). Runners are not in the game yet. gltron is under the GNU GPL version 2, which still applies to the mesh in those two files, so a build that includes it can only be distributed on the terms of that licence.
+The runner model is the light cycle mesh from [gltron](https://github.com/laanwj/gltron), kept as `images/runner.obj` and [src/runner.cpp](src/runner.cpp). gltron is under the GNU GPL version 2, which still applies to the mesh in those two files. Runners are not in the game yet, so only `vehicle_preview` links that code, and neither the game nor its packages contain it.
 
 `adlib/` and `engine/` are under the MIT licence, except that the first effects in `adlib/src/adlib_synth.cpp` are derived from the Atlas project, Copyright (c) 2026 Astute Systems PTY LTD, under that project's licence.

@@ -1,0 +1,112 @@
+name: Debian packages
+
+# Builds the game as a .deb for Ubuntu 24.04 and for Ubuntu 26.04, each in its own job, because the package depends on
+# the libraries of the release it was built on. Pushing a tag such as v0.1.0 attaches both packages to a GitHub
+# release of that tag.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+      - "*.md"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deb-ubuntu-24-04:
+    name: .deb for Ubuntu 24.04
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake g++ make dpkg-dev libsdl2-dev
+      - name: Work out the version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "SPACE_PARANOIDS_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "SPACE_PARANOIDS_VERSION=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_ENV"
+          fi
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSPACE_PARANOIDS_DISTRO=ubuntu24.04 -DSPACE_PARANOIDS_PACKAGE_VERSION="$SPACE_PARANOIDS_VERSION"
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        run: cd build && cpack
+      - name: Install the package and run the game
+        run: |
+          sudo apt-get install -y ./build/space-paranoids_*_ubuntu24.04_*.deb
+          dpkg -c build/space-paranoids_*_ubuntu24.04_*.deb
+          if ldd /usr/bin/space-paranoids | grep "not found"; then exit 1; fi
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy space-paranoids 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-ubuntu24.04
+          path: build/space-paranoids_*_ubuntu24.04_*.deb
+          if-no-files-found: error
+
+  deb-ubuntu-26-04:
+    name: .deb for Ubuntu 26.04
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake g++ make dpkg-dev libsdl2-dev
+      - name: Work out the version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "SPACE_PARANOIDS_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "SPACE_PARANOIDS_VERSION=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_ENV"
+          fi
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSPACE_PARANOIDS_DISTRO=ubuntu26.04 -DSPACE_PARANOIDS_PACKAGE_VERSION="$SPACE_PARANOIDS_VERSION"
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Package
+        run: cd build && cpack
+      - name: Install the package and run the game
+        run: |
+          sudo apt-get install -y ./build/space-paranoids_*_ubuntu26.04_*.deb
+          dpkg -c build/space-paranoids_*_ubuntu26.04_*.deb
+          if ldd /usr/bin/space-paranoids | grep "not found"; then exit 1; fi
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy space-paranoids 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-ubuntu26.04
+          path: build/space-paranoids_*_ubuntu26.04_*.deb
+          if-no-files-found: error
+
+  release:
+    name: Attach the packages to the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [deb-ubuntu-24-04, deb-ubuntu-26-04]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: deb-*
+          merge-multiple: true
+          path: debs
+      - name: Create the release if there is none, and upload the packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -l debs
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes || sleep 10
+          gh release upload "$GITHUB_REF_NAME" debs/*.deb --clobber
