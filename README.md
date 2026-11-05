@@ -1,5 +1,9 @@
 # space-paranoids
 
+[![Debian packages](https://github.com/ross-newman/space-paranoids/actions/workflows/deb.yml/badge.svg?branch=main)](https://github.com/ross-newman/space-paranoids/actions/workflows/deb.yml)
+[![Windows installer](https://github.com/ross-newman/space-paranoids/actions/workflows/windows.yml/badge.svg?branch=main)](https://github.com/ross-newman/space-paranoids/actions/workflows/windows.yml)
+[![Release](https://img.shields.io/github/v/release/ross-newman/space-paranoids)](https://github.com/ross-newman/space-paranoids/releases)
+
 A first-person tank game in C++17. Drive a slow, heavy tank through a generated 3D maze and shoot down the kites flying its corridors. Everything is made by code: the picture comes from a software renderer and the sound from AdLib-style FM synthesis, with no image or audio files loaded at run time.
 
 ![A kite blown up down a corridor, seen from the chase camera, with the tank, radar and score](images/action.png)
