@@ -1,0 +1,95 @@
+name: Windows installer
+
+# Builds the game for Windows with MSYS2 (UCRT64 MinGW-w64 and SDL2), runs the tests, makes the NSIS installer with CPack,
+# installs it silently and starts the game from the installed folder. Pushing a tag such as v0.1.0 attaches the
+# installer to a GitHub release of that tag.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+      - "*.md"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-nsis:
+    name: NSIS installer for Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Work out the version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $version = $env:GITHUB_REF_NAME.Substring(1)
+          } else {
+            $version = (Get-Content VERSION -TotalCount 1).Trim()
+          }
+          "SPACE_PARANOIDS_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-nsis
+      - name: Configure
+        shell: msys2 {0}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSPACE_PARANOIDS_PACKAGE_VERSION="$SPACE_PARANOIDS_VERSION"
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build build
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --test-dir build --output-on-failure
+      - name: Make the installer
+        shell: msys2 {0}
+        run: cd build && cpack -G NSIS
+      - name: Install it silently and run the game from the installed folder
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem build\space-paranoids-*-windows-x64.exe).FullName
+          Write-Host "Installer: $installer"
+          Start-Process -FilePath $installer -ArgumentList '/S', '/D=C:\space-paranoids-test' -Wait
+          Get-ChildItem C:\space-paranoids-test -Recurse | Select-Object -ExpandProperty FullName
+          if (-not (Test-Path C:\space-paranoids-test\bin\space-paranoids.exe)) { throw 'the game was not installed' }
+          if (-not (Test-Path C:\space-paranoids-test\bin\SDL2.dll)) { throw 'SDL2.dll was not installed with it' }
+          $env:SDL_VIDEODRIVER = 'dummy'
+          $env:SDL_AUDIODRIVER = 'dummy'
+          $game = Start-Process -FilePath C:\space-paranoids-test\bin\space-paranoids.exe -ArgumentList '30' -Wait -PassThru
+          if ($game.ExitCode -ne 0) { throw "the installed game exited with $($game.ExitCode)" }
+      - uses: actions/upload-artifact@v6
+        with:
+          name: windows-installer
+          path: build/space-paranoids-*-windows-x64.exe
+          if-no-files-found: error
+
+  release:
+    name: Attach the installer to the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows-nsis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: windows-installer
+          path: installer
+      - name: Create the release if there is none, and upload the installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -l installer
+          # The Debian packages' workflow may be making the release at the same moment: if it exists by now, use it
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes || sleep 10
+          gh release upload "$GITHUB_REF_NAME" installer/*.exe --clobber

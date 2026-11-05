@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=space-paranoids
+GenericName=Tank maze game
+Comment=Drive a tank through a generated 3D maze and shoot down the kites
+Exec=space-paranoids
+Icon=space-paranoids
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=tank;maze;shooter;
